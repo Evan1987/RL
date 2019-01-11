@@ -22,10 +22,10 @@ if __name__ == '__main__':
     path = os.getcwd()
     env = Maze()
     RL = QLearningTable(actions=env.action_space)
-    
+
     def update():
         log = []
-        for episode in range(30):
+        for episode in range(50):
             s = env.reset()
             step_count = 0
             done = False
@@ -51,4 +51,19 @@ if __name__ == '__main__':
 
     env.after(100, update)
     env.mainloop()
-    RL.q_table.to_excel(path + "/q_table.xlsx", index=True)
+
+
+    def output_table(q_table, file_path):
+
+        def trans_coord(coord):
+            try:
+                l = map(lambda x: str(int(x // 40)), eval(coord)[:2])
+                return ",".join(l)
+            except NameError:
+                return coord
+
+        q_table["coord"] = q_table.index
+        q_table["coord"] = q_table["coord"].apply(trans_coord)
+        q_table.sort_values(by="coord", ascending=True).to_excel(file_path, index=True)
+
+    output_table(RL.q_table, path + "/q_table.xlsx")

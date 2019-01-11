@@ -144,8 +144,13 @@ class Maze(tk.Tk):
         self.update()
 
 if __name__ == '__main__':
+
     env = Maze()
-    print(env.canvas.coords(env.oval))
+    print(env.reset())  # [5.0, 5.0, 35.0, 35.0]
+    print(env.canvas.coords(env.oval))  # [85.0, 85.0, 115.0, 115.0]
+    print(env.canvas.coords(env.hell_list[0]))  # [85.0, 45.0, 115.0, 75.0]
+    print(env.canvas.coords(env.hell_list[1]))  # [45.0, 85.0, 75.0, 115.0]
+
     def update():
         for t in range(10):
             env.reset()
@@ -155,9 +160,9 @@ if __name__ == '__main__':
                 a = np.random.choice(["u", "d", "l", "r"])
                 s, r, done = env.step(a)
                 time.sleep(0.1)
+
     env.after(100, update)
     env.mainloop()
-    env.destroy()
 
 
 
