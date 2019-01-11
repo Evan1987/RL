@@ -3,12 +3,12 @@ import sys
 import os
 sys.path.append(os.getcwd())
 from maze_env import Maze
-from RL_brain import DeepQNetwork
+from RL_brain import DeepQNetWork
 
 
 if __name__ == '__main__':
     env = Maze()
-    RL = DeepQNetwork(env.n_actions,
+    RL = DeepQNetWork(env.n_actions,
                       env.n_features,
                       learning_rate=0.01,
                       reward_decay=0.9,
