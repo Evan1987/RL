@@ -32,7 +32,7 @@ class Maze(tk.Tk):
         self.geometry("{0}x{1}".format(self.height, self.width))
         self.hell1_coord = (2, 1)
         self.hell2_coord = (1, 2)
-        self.hell_coord_list = [(2, 1)]
+        self.hell_coord_list = [(2, 1), (1, 2)]
         self.oval_coord = (2, 2)
         self.item_size = 30
         self._build_maze()
@@ -134,14 +134,15 @@ class Maze(tk.Tk):
         if next_coord == self.canvas.coords(self.oval):  # bingo
             reward = 1
             done = True
-            s_ = "terminal"
+
         elif next_coord in [self.canvas.coords(hell) for hell in self.hell_list]:  # dead
             reward = -1
             done = True
-            s_ = "terminal"
+
         elif next_coord == s:  # hit the wall
             reward = -0.5
             done = False
+
         else:
             reward = 0
             done = False

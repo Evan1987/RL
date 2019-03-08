@@ -12,12 +12,12 @@ if __name__ == '__main__':
                       env.n_features,
                       learning_rate=0.01,
                       reward_decay=0.9,
-                      e_greedy=0.9,
+                      e_greedy=0.8,
                       replace_target_iter=200,
                       memory_size=200)
 
     def run_maze():
-        step = 0
+        epoch = 0
         for episode in range(300):
             s = env.reset()
             done = False
@@ -32,11 +32,11 @@ if __name__ == '__main__':
                 RL.store_transition(s, a, r, s_)
 
                 # 控制学习起始时间和频率 (先累积一些记忆再开始学习)
-                if (step > 200) and (step % 5 == 0):
+                if (epoch > 200) and (epoch % 5 == 0):
                     RL.learn()
 
                 s = s_
-                step += 1
+                epoch += 1
         print("Game Over")
         env.destroy()
 

@@ -74,11 +74,11 @@ class DeepQNetWork:
 
             # ------------------ build evaluate_net ------------------
             with tf.variable_scope("eval_net"):
-                # shape: [None, 20]
+                # shape: [None, 20]  status => hidden_layer
                 e1 = tf.layers.dense(inputs=self.s, units=20, activation=tf.nn.relu,
                                      kernel_initializer=w_initializer, bias_initializer=b_initializer, name="e1")
 
-                # shape: [None, n_actions]
+                # shape: [None, n_actions]   hidden_layer => action
                 self.q_eval = tf.layers.dense(inputs=e1, units=self.n_actions, activation=None,
                                               kernel_initializer=w_initializer, bias_initializer=b_initializer, name="q")
 
@@ -89,18 +89,18 @@ class DeepQNetWork:
                                      kernel_initializer=w_initializer, bias_initializer=b_initializer, name="t1")
 
                 # shape: [None, n_actions]
-                self.q_next = tf.layers.dense(inputs=e1, units=self.n_actions, activation=None,
+                self.q_next = tf.layers.dense(inputs=t1, units=self.n_actions, activation=None,
                                               kernel_initializer=w_initializer, bias_initializer=b_initializer,
                                               name="t2")
 
-            with tf.variable_scope("q_target"):
+            with tf.variable_scope("q_eval"):  # Pred Q
+                a_indices = tf.stack([tf.range(tf.shape(self.a)[0], dtype=tf.int32), self.a], axis=1)  # [None, 2]
+                self.q_eval_a = tf.gather_nd(params=self.q_eval, indices=a_indices)  # [None, ]  get new tensor from params by indices
+
+            with tf.variable_scope("q_target"):  # Actual Q simulated by Q learning
                 # shape: [None, ]
                 q_target = self.r + self.gamma * tf.reduce_max(self.q_next, axis=1, name="Qmax_s_")
                 self.q_target = tf.stop_gradient(q_target)  # don't take its value into account when computing gradient
-
-            with tf.variable_scope("q_eval"):
-                a_indices = tf.stack([tf.range(tf.shape(self.a)[0], dtype=tf.int32), self.a], axis=1)  # [None, 2]
-                self.q_eval_a = tf.gather_nd(params=self.q_eval, indices=a_indices)  # [None, ]
 
             with tf.variable_scope("loss"):
                 self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval_a, name="TD_error"))
