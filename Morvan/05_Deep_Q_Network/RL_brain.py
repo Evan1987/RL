@@ -22,6 +22,7 @@ class DeepQNetWork:
                  memory_size=500,
                  batch_size=32,
                  e_greedy_increment=None,
+                 double_q=False,
                  output_graph=False):
         self.n_actions = n_actions
         self.n_features = n_features
@@ -33,13 +34,13 @@ class DeepQNetWork:
         self.batch_size = batch_size
         self.epsilon_increment = e_greedy_increment
         self.epsilon = 0 if e_greedy_increment is not None else self.epsilon_max
+        self.double_q = double_q  # 是否使用doubleDQN
         self.sess = self.session
         self.sess.run(self.init)
         self.learning_step_count = 0
 
         # feature_num: [s, a, r, s_]
         self.memory = np.zeros((self.memory_size, self.n_features * 2 + 2))
-
         self.cost_list = []
 
         if output_graph:
@@ -99,7 +100,12 @@ class DeepQNetWork:
 
             with tf.variable_scope("q_target"):  # Actual Q simulated by Q learning
                 # shape: [None, ]
-                q_target = self.r + self.gamma * tf.reduce_max(self.q_next, axis=1, name="Qmax_s_")
+                if self.double_q:
+                    indices = tf.stack([tf.range(tf.shape(self.a)[0], dtype=tf.int32), tf.argmax(self.q_eval, axis=1, output_type=tf.int32)], axis=1)
+                    selected_q_next = tf.gather_nd(params=self.q_next, indices=indices)  # [None, ]
+                else:
+                    selected_q_next = tf.reduce_max(self.q_next, axis=1, name="Qmax_s_")
+                q_target = self.r + self.gamma * selected_q_next
                 self.q_target = tf.stop_gradient(q_target)  # don't take its value into account when computing gradient
 
             with tf.variable_scope("loss"):

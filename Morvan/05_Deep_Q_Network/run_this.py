@@ -14,6 +14,7 @@ if __name__ == '__main__':
                       reward_decay=0.9,
                       e_greedy=0.8,
                       replace_target_iter=200,
+                      double_q=True,
                       memory_size=200)
 
     def run_maze():
