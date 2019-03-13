@@ -38,7 +38,8 @@ class Snakes(gym.Env):
         self.pos = 1
         return 1
 
-    def step(self, dice):
+    def step(self, act):
+        dice = self.dices[act]
         choice = random.choice(range(1, dice + 1))
         self.pos += choice
         if self.pos == 100:
