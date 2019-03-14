@@ -39,8 +39,8 @@ class Snakes(gym.Env):
         return 1
 
     def step(self, act):
-        dice = self.dices[act]
-        choice = random.choice(range(1, dice + 1))
+        d = self.dices[act]
+        choice = random.choice(range(1, d + 1))
         self.pos += choice
         if self.pos == 100:
             return 100, 100.0, True, {}
@@ -55,8 +55,9 @@ class Snakes(gym.Env):
     def render(self, mode='human'):
         pass
 
-    def reward(self, state):
-        if state == 100:
+    @staticmethod
+    def reward(s):
+        if s == 100:
             return 100.0
         return -1.0
 

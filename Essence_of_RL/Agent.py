@@ -2,10 +2,17 @@
 This part of code followed book "the Essence of RL"
 """
 
+import abc
 import numpy as np
 
 
-class TableAgent(object):
+class Agent(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def play(self):
+        pass
+
+
+class TableAgent(Agent):
     def __init__(self, env, *, gamma=0.8):
         self.s_len = env.observation_space.n  # 101
         self.a_len = env.action_space.n  # 2
@@ -40,6 +47,28 @@ class TableAgent(object):
         return self.pi[state]
 
 
+class ModelFreeAgent(Agent):
+    def __init__(self, env, *, gamma=0.8, e_greedy=0.9):
+        """
+        无模型问题的 Agent，环境的状态转移矩阵未知
+        :param env: 环境
+        :param gamma: 回报衰减系数
+        :param e_greedy: 贪婪率，随机数高于这个值会按照随机行为进行行动
+        """
+        self.s_len = env.observation_space.n  # 101
+        self.a_len = env.action_space.n  # 2
+        self.pi = np.zeros(self.s_len, dtype=np.int32)  # 策略（列表式地呈现） length: 101，每个状态选择哪个骰子
+        self.value_q = np.zeros((self.s_len, self.a_len))  # 行为值函数 101 * 2
+        self.value_n = np.zeros((self.s_len, self.a_len))  # 行为计数（采样序列在此处发生的数量）
+        self.gamma = gamma
+        self.e_greedy = e_greedy
+
+    def play(self, state):
+        if np.random.uniform() > self.e_greedy:
+            return np.random.randint(0, self.a_len)
+        return self.pi[state]
+
+
 def eval_game(env, policy):
     """
     在env下测试策略效果
@@ -47,8 +76,8 @@ def eval_game(env, policy):
     :param policy: 策略。 TableAgent类型 或 列表(length 与 state数量相同)
     :return: 此种策略下的总得分
     """
-    assert isinstance(policy, list) or isinstance(policy, TableAgent), "Illegal Policy"
-    policy = policy.pi if isinstance(policy, TableAgent) else policy
+    assert isinstance(policy, list) or isinstance(policy, Agent), "Illegal Policy"
+    policy = policy.pi if isinstance(policy, Agent) else policy
 
     state = env.reset()
     total_reward = 0
