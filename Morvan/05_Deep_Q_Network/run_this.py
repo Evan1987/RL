@@ -15,8 +15,10 @@ if __name__ == '__main__':
                       e_greedy=0.8,
                       replace_target_iter=200,
                       double_q=False,  # Double DQN
-                      prioritized=True,
-                      memory_size=200)
+                      prioritized=False,  # use PRB
+                      dueling=True,  # use Dueling DQN
+                      memory_size=200,
+                      output_graph=True)
 
     def run_maze():
         epoch = 0
