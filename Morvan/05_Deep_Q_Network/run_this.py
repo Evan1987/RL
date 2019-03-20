@@ -3,7 +3,7 @@ import sys
 import os
 sys.path.append(os.getcwd())
 from maze_env import Maze
-from RL_brain import DeepQNetWork
+from Essence_of_RL.QLearning.DQN import DeepQNetWork
 
 
 if __name__ == '__main__':
@@ -14,7 +14,8 @@ if __name__ == '__main__':
                       reward_decay=0.9,
                       e_greedy=0.8,
                       replace_target_iter=200,
-                      double_q=True,
+                      double_q=False,  # Double DQN
+                      prioritized=True,
                       memory_size=200)
 
     def run_maze():
