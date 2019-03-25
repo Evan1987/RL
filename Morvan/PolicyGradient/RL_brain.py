@@ -182,8 +182,8 @@ class ActorCritic(RL):
                                          name="V")
 
                 with tf.variable_scope("td_loss"):
-                    self.td_error = tf.reshape(self.r + self.gamma * self.v_ - self.v, [])
-                    self.mse = tf.square(self.td_error)
+                    td_error = tf.reshape(self.r + self.gamma * self.v_ - self.v, [])
+                    self.mse = tf.square(td_error)
 
                 with tf.variable_scope("train"):
                     self.critic_train_op = tf.train.AdamOptimizer(self.critic_lr).minimize(self.mse)
@@ -205,10 +205,10 @@ class ActorCritic(RL):
                     log_prob = tf.log(self.acts_prob[0, self.a])
 
                     # 此处训练梯度只影响Actor部分，所以要对td_error进行stop_gradient
-                    self.log_loss = log_prob * tf.stop_gradient(self.td_error)
+                    log_loss = log_prob * tf.stop_gradient(td_error)
 
                 with tf.variable_scope("train"):
-                    self.actor_train_op = tf.train.AdamOptimizer(self.actor_lr).minimize(-self.log_loss)
+                    self.actor_train_op = tf.train.AdamOptimizer(self.actor_lr).minimize(-log_loss)
 
             self.init = tf.global_variables_initializer()
 
