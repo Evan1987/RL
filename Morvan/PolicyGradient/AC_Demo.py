@@ -45,14 +45,15 @@ if __name__ == '__main__':
         s = env.reset()
         t = 0
         track_r = []
-        track_td_loss = []
-        track_action_loss = []
         while True:
             if RENDER:
                 env.render()
             a = RL.choose_action(s)
             s_, r, done, info = env.step(a)
-            track_r.append(-20 if done else r)
+
+            if done:
+                r = -20
+            track_r.append(r)
             RL.learn(s, a, r, s_)
 
             s = s_
