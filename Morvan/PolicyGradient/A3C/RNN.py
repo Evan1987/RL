@@ -1,73 +1,89 @@
 """
-Based on https://morvanzhou.github.io/tutorials/
+Asynchronous Advantage Actor Critic (A3C) + RNN with continuous action space, Reinforcement Learning.
+
+The Pendulum example.
+
+Based on: https://morvanzhou.github.io/tutorials/
 """
 
-import gym
 import multiprocessing
 import threading
 import tensorflow as tf
+from tensorflow.contrib.rnn import BasicRNNCell
 import numpy as np
+import gym
 import matplotlib.pyplot as plt
 
-np.random.seed(2)
-tf.set_random_seed(2)
-GAME = 'Pendulum-v0'
-UPDATE_GLOBAL_ITER = 10
+GAME = "Pendulum-v0"
+OUTPUT_GRAPH = True
+MAX_EP_STEP = 200
+MAX_GLOBAL_EP = 1500
+UPDATE_GLOBAL_ITER = 5
+GAMMA = 0.9
+ENTROPY_BETA = 0.01
+LR_A = 0.0001    # learning rate for actor
+LR_C = 0.001    # learning rate for critic
 GLOBAL_RUNNING_R = []
 GLOBAL_EP = 0
-MAX_EP_STEP = 200  # Pendulum never terminated, so set a max_loop
-MAX_GLOBAL_EP = 2000
-N_WORKERS = multiprocessing.cpu_count()
-OUTPUT_GRAPH = True
 
-#
-# def _build_session(graph):
-#     config = tf.ConfigProto()
-#     config.gpu_options.per_process_gpu_memory_fraction = 0.8  # 程序最多只能占用指定gpu80%的显存
-#     config.gpu_options.allow_growth = True  # 程序按需申请内存
-#     sess = tf.Session(graph=graph, config=config)
-#     return sess
+env: gym.Env = gym.make(GAME).unwrapped
+N_S = env.observation_space.shape[0]
+N_A = env.action_space.shape[0]
+A_BOUND = [env.action_space.low, env.action_space.high]
 
 
 class ACNet(object):
-    def __init__(self, *, scope: str, n_actions: int, n_features: int, action_bounds: list, reward_decay=0.9,
-                 entropy_beta=0.01, actor_learning_rate=0.0001, critic_learning_rate=0.001,
-                 is_global: bool=False, globalAC=None):
+    cell_size = 64
+    gamma = GAMMA
+    actor_lr = LR_A
+    critic_lr = LR_C
+    entropy_beta = ENTROPY_BETA
+    n_actions = N_A
+    n_features = N_S
+    action_low, action_high = A_BOUND
+    sess = None  # reassigned from outer lately
+
+    def __init__(self, scope: str, is_global: bool, globalAC=None):
         self.scope = scope
-        self.n_actions = n_actions  # 1
-        self.n_features = n_features
-        self.action_low, self.action_high = action_bounds
-        self.gamma = reward_decay
-        self.entropy_beta = entropy_beta
-        self.actor_lr = actor_learning_rate
-        self.critic_lr = critic_learning_rate
         self.is_global = is_global
-        self.globalAC = globalAC
+        if globalAC is not None:
+            self.globalAC = globalAC
+
         self._build_graph()
 
     def _build_net(self):
         with tf.variable_scope("critic"):
-            c_l1 = tf.layers.dense(inputs=self.s, units=100, activation=tf.nn.relu6,
-                                   kernel_initializer=self.w_init,
-                                   bias_initializer=self.b_init,
-                                   name="c_l1")
-            v = tf.layers.dense(inputs=c_l1, units=1, activation=None,
+            with tf.variable_scope("state_input"):  # 这里仅让input与critic相关
+                # add dim, [time_step, feature] => [time_step, batch_size=1, feature]
+                s = tf.expand_dims(input=self.s, axis=1, name="timely_input")
+                rnn_cell = BasicRNNCell(self.cell_size)
+                self.init_state = rnn_cell.zero_state(batch_size=1, dtype=tf.float32)
+
+                # output: [time_step, batch_size, cell_size]
+                # final_state: [batch_size, cell_size]
+                output, self.final_state = tf.nn.dynamic_rnn(
+                    cell=rnn_cell, inputs=s, initial_state=self.init_state, time_major=True, dtype=tf.float32
+                )
+                cell_out = tf.reshape(tensor=output, shape=[-1, self.cell_size], name="flatten_rnn_outputs")
+            lc = tf.layers.dense(inputs=cell_out, units=50, activation=tf.nn.relu6,
+                                 kernel_initializer=self.w_init,
+                                 bias_initializer=self.b_init,
+                                 name="lc")
+            v = tf.layers.dense(inputs=lc, units=1, activation=None,
                                 kernel_initializer=self.w_init,
                                 bias_initializer=self.b_init,
                                 name="V")
 
         with tf.variable_scope("actor"):
-            a_l1 = tf.layers.dense(inputs=self.s, units=200, activation=tf.nn.relu6,
-                                   kernel_initializer=self.w_init,
-                                   bias_initializer=self.b_init,
-                                   name="a_l1")
-            # [None, n_actions]
-            mu = tf.layers.dense(inputs=a_l1, units=self.n_actions, activation=tf.nn.tanh,
+            la = tf.layers.dense(inputs=cell_out, units=80, activation=tf.nn.relu6,
+                                 kernel_initializer=self.w_init,
+                                 bias_initializer=self.b_init,
+                                 name="la")
+            mu = tf.layers.dense(inputs=la, units=self.n_actions, activation=tf.nn.tanh,
                                  kernel_initializer=self.w_init,
                                  bias_initializer=self.b_init,
                                  name="mu")
-            # [None, n_actions]
-            sigma = tf.layers.dense(inputs=a_l1, units=self.n_actions, activation=tf.nn.softplus,
+            sigma = tf.layers.dense(inputs=la, units=self.n_actions, activation=tf.nn.softplus,
                                     kernel_initializer=self.w_init,
                                     bias_initializer=self.b_init,
                                     name="sigma")
@@ -88,7 +104,7 @@ class ACNet(object):
         else:
             with tf.variable_scope(self.scope):
                 self.s = tf.placeholder(dtype=tf.float32, shape=[None, self.n_features], name="S")
-                self.a_his = tf.placeholder(dtype=tf.float32, shape=[None, self.n_actions], name="A")  # 分布中取概率密度，需要float32
+                self.a_his = tf.placeholder(dtype=tf.float32, shape=[None, self.n_actions], name="A")
                 self.v_target = tf.placeholder(dtype=tf.float32, shape=[None, 1], name="V_target")
                 mu, sigma, self.v, self.actor_params, self.critic_params = self._build_net()
 
@@ -136,19 +152,21 @@ class ACNet(object):
                     self.critic_params_push_op = \
                         critic_opt.apply_gradients(zip(self.critic_grads, self.globalAC.critic_params))
 
-    def update_global(self, *, sess, s, a, v_target):
+    def update_global(self, *, s, a, v_target, cell_state):
         s = np.asarray(s).reshape(-1, self.n_features)
         a = np.asarray(a).reshape(-1, self.n_actions)
         v_target = np.asarray(v_target).reshape(-1, 1)
-        feed_dict = {self.s: s, self.a_his: a, self.v_target: v_target}
-        sess.run([self.actor_params_push_op, self.critic_params_push_op], feed_dict=feed_dict)
+        cell_state = np.asarray(cell_state).reshape(-1, self.cell_size)
+        feed_dict = {self.s: s, self.a_his: a, self.v_target: v_target, self.init_state: cell_state}
+        self.sess.run([self.actor_params_push_op, self.critic_params_push_op], feed_dict=feed_dict)
 
-    def sync_with_global(self, sess):
-        sess.run([self.actor_params_pull_op, self.critic_params_pull_op])
+    def sync_with_global(self):
+        self.sess.run([self.actor_params_pull_op, self.critic_params_pull_op])
 
-    def choose_action(self, sess: tf.Session, s):
+    def choose_action(self, s, cell_state):
         s = np.asarray(s).reshape(-1, self.n_features)
-        return sess.run(self.A, feed_dict={self.s: s})
+        cell_state = np.asarray(cell_state).reshape(1, self.cell_size)
+        return self.sess.run([self.A, self.final_state], feed_dict={self.s: s, self.init_state: cell_state})
 
 
 class Worker(object):
@@ -157,9 +175,6 @@ class Worker(object):
         self.env: gym.Env = gym.make(GAME).unwrapped
         self.globalAC = globalAC
         self.AC = ACNet(scope=scope,
-                        n_actions=self.env.action_space.shape[0],
-                        n_features=self.env.observation_space.shape[0],
-                        action_bounds=[self.env.action_space.low[0], self.env.action_space.high[0]],
                         is_global=False,
                         globalAC=globalAC)
         self._reset_buffer()
@@ -169,15 +184,16 @@ class Worker(object):
         self.buffer_a = []
         self.buffer_r = []
 
-    def work(self, COORD, SESS):
+    def work(self, COORD):
         global GLOBAL_RUNNING_R, GLOBAL_EP
         total_step = 1
         while not COORD.should_stop() and GLOBAL_EP < MAX_GLOBAL_EP:
-            s = self.env.reset()
+            s = self.env.reset()  # 作为序列起始点，每次更新global时使用
             ep_r = 0
-
+            rnn_state = self.AC.sess.run(self.AC.init_state)
+            keep_state = rnn_state.copy()
             for ep_t in range(MAX_EP_STEP):
-                a = self.AC.choose_action(sess=SESS, s=s)
+                a, rnn_state_ = self.AC.choose_action(s=s, cell_state=rnn_state)
                 s_, r, done, info = self.env.step(a)  # need a (1,) shape
                 done = True if ep_t == MAX_EP_STEP - 1 else False  # 最后一个循环为done
                 ep_r += r
@@ -186,17 +202,22 @@ class Worker(object):
                 self.buffer_r.append((r + 8) / 8)  # normalized to (-1, 1)
 
                 if total_step % UPDATE_GLOBAL_ITER == 0 or done:
-                    v_s_ = 0 if done else np.asscalar(SESS.run(self.AC.v, feed_dict={self.AC.s: [s_]}))
+                    v_s_ = 0 if done \
+                        else np.asscalar(self.AC.sess.run(self.AC.v, feed_dict={self.AC.s: [s_],
+                                                                                self.AC.init_state: rnn_state_}))
                     # trans buffer_r to buffer_v_target by v(s) = gamma * v(s_) + r circularly
                     for i in range(len(self.buffer_r) - 1, -1, -1):
                         v_s_ = v_s_ * self.AC.gamma + self.buffer_r[i]
                         self.buffer_r[i] = v_s_
                     # maybe misleading buffer_r is buffer_v_target now
-                    self.AC.update_global(sess=SESS, s=self.buffer_s, a=self.buffer_a, v_target=self.buffer_r)  # 更新
-                    self.AC.sync_with_global(sess=SESS)
+                    self.AC.update_global(s=self.buffer_s, a=self.buffer_a,
+                                          v_target=self.buffer_r, cell_state=keep_state)  # 更新
+                    self.AC.sync_with_global()
                     self._reset_buffer()
+                    keep_state = rnn_state_.copy()
                 s = s_
                 total_step += 1
+                rnn_state = rnn_state_
 
                 if done:
                     if not GLOBAL_RUNNING_R:
@@ -209,19 +230,13 @@ class Worker(object):
 
 
 if __name__ == "__main__":
-    env = gym.make(GAME).unwrapped
-    n_actions = env.action_space.shape[0]
-    action_bounds = [env.action_space.low[0], env.action_space.high[0]]
-    n_features = env.observation_space.shape[0]
-
     tf.reset_default_graph()
     graph = tf.Graph()
     with tf.device("/CPU:0"):  # 都放在内存里
         with graph.as_default():
-            GLOBAL_AC = ACNet(scope="GLOBAL", n_actions=n_actions, action_bounds=action_bounds,
-                              n_features=n_features, is_global=True)
+            GLOBAL_AC = ACNet(scope="GLOBAL", is_global=True)
             workers = []
-            for i in range(N_WORKERS):
+            for i in range(multiprocessing.cpu_count()):
                 scope = "Worker_%d" % i
                 workers.append(Worker(scope=scope, globalAC=GLOBAL_AC))
             init = tf.global_variables_initializer()
@@ -235,7 +250,8 @@ if __name__ == "__main__":
 
     worker_threads = []
     for worker in workers:
-        t = threading.Thread(target=lambda: worker.work(COORD=COORD, SESS=SESS))
+        worker.AC.sess = SESS
+        t = threading.Thread(target=lambda: worker.work(COORD=COORD))
         t.start()
         worker_threads.append(t)
     COORD.join(threads=worker_threads)
@@ -244,3 +260,12 @@ if __name__ == "__main__":
     plt.xlabel("step")
     plt.ylabel("Total moving reward")
     plt.show()
+
+
+
+
+
+
+
+
+
