@@ -207,6 +207,9 @@ if __name__ == "__main__":
 
     SESS = tf.Session(graph=graph, config=tf.ConfigProto(device_count={'GPU': 0}))  # 使用cpu计算
     SESS.run(init)
+
+    # Coordinator类用来管理在Session中的多个线程，
+    # 使用 tf.train.Coordinator()来创建一个线程管理器（协调器）对象。
     COORD = tf.train.Coordinator()
 
     if OUTPUT_GRAPH:
@@ -214,10 +217,10 @@ if __name__ == "__main__":
 
     worker_threads = []
     for worker in workers:
-        t = threading.Thread(target=lambda: worker.work(COORD=COORD, SESS=SESS))
+        t = threading.Thread(target=lambda: worker.work(COORD=COORD, SESS=SESS))  # 创建一个线程，并分配其工作
         t.start()
         worker_threads.append(t)
-    COORD.join(threads=worker_threads)
+    COORD.join(threads=worker_threads)  #把开启的线程加入主线程，等待threads结束
 
     plt.plot(np.arange(len(GLOBAL_RUNNING_R)), GLOBAL_RUNNING_R)
     plt.xlabel("step")

@@ -1,5 +1,7 @@
 """
 Based on https://morvanzhou.github.io/tutorials/
+
+with td_error as advantage
 """
 
 
