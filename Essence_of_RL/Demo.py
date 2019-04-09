@@ -46,8 +46,7 @@ if __name__ == '__main__':
     policies = {
         "All_0": [0] * 100,
         "All_1": [1] * 100,
-        "Randomly": np.random.randint(low=0, high=2, size=100).tolist(),
-        "Opt": [1] * 97 + [0] * 3
+        "Randomly": np.random.randint(low=0, high=2, size=100).tolist()
     }
 
     for name, policy in policies.items():
@@ -62,9 +61,9 @@ if __name__ == '__main__':
         "PolicyIteration": PolicyIteration(TableAgent(env), max_iter=-1),
         "ValueIteration": ValueIteration(TableAgent(env), max_iter=-1),
         "GeneralizedPolicyIteration": GeneralizedPolicyIteration(TableAgent(env), max_policy_iter=1, max_value_iter=10),
-        "MonteCarlo": MonteCarlo(env, ModelFreeAgent(env), eval_iter=100,  max_iter=10, episode_save=monte_carlo_samples_path),
-        "SARSA": SARSA(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5),
-        "QLearning": QLearning(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5)
+        # "MonteCarlo": MonteCarlo(env, ModelFreeAgent(env), eval_iter=100,  max_iter=10, episode_save=monte_carlo_samples_path),
+        # "SARSA": SARSA(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5),
+        # "QLearning": QLearning(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5)
     }
 
     for alg_name, alg in algs.items():
