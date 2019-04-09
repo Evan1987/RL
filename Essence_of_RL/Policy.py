@@ -24,6 +24,7 @@ class PolicyIteration(Alg):
         self.agent = agent
         self.max_iter = max_iter
         self.epsilon = epsilon
+        self.iter_counter = 0
 
     def rmse(self, x: np.ndarray, y: np.ndarray) -> float:
         return sum(np.power(x - y, 2)) ** 0.5
@@ -70,14 +71,10 @@ class PolicyIteration(Alg):
 
     def iteration(self):
         """策略迭代主函数"""
-        epoch = 0
         ret = True
         while ret:
-            epoch += 1
-            num_iters = self.policy_evaluation()
+            self.iter_counter += self.policy_evaluation()
             ret = self.policy_improvement()
-            #print("Epoch %d: loops %d rounds" % (epoch, num_iters))
-        #print("Iter %d rounds converge!" % epoch)
 
 
 class ValueIteration(Alg):
@@ -91,14 +88,14 @@ class ValueIteration(Alg):
         self.agent = agent
         self.max_iter = max_iter
         self.epsilon = epsilon
+        self.iter_counter = 0
 
     def rmse(self, x: np.ndarray, y: np.ndarray) -> float:
         return sum(np.power(x - y, 2)) ** 0.5
 
     def iteration(self):
-        iteration = 0
-        while iteration != self.max_iter:
-            iteration += 1
+        while self.iter_counter != self.max_iter:
+            self.iter_counter += 1
             new_value_pi = np.zeros_like(self.agent.value_pi)
             for i in range(1, self.agent.s_len):
                 max_value = -float("inf")
@@ -110,7 +107,6 @@ class ValueIteration(Alg):
             if self.rmse(new_value_pi, self.agent.value_pi) < self.epsilon:
                 break
             self.agent.value_pi = new_value_pi
-        #print("Iter %d rounds converge!" % iteration)
 
         for i in range(1, self.agent.s_len):
             for act in range(self.agent.a_len):
@@ -124,10 +120,13 @@ class GeneralizedPolicyIteration(Alg):
         self.agent = agent
         self.pi_alg = PolicyIteration(self.agent, max_iter=max_policy_iter)
         self.vi_alg = ValueIteration(self.agent, max_iter=max_value_iter)
+        self.iter_counter = 0
 
     def iteration(self):
         self.vi_alg.iteration()
         self.pi_alg.iteration()
+        self.iter_counter += self.vi_alg.iter_counter + self.pi_alg.iter_counter
+
 
 
 

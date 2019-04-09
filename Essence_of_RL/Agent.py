@@ -14,18 +14,20 @@ class Agent(metaclass=abc.ABCMeta):
 
 class TableAgent(Agent):
     def __init__(self, env, *, gamma=0.8):
+        self.env = env
         self.s_len = env.observation_space.n  # 101
         self.a_len = env.action_space.n  # 2
         self.dices = env.dices  # length: 2
         self.ladders = env.ladders
+        self.gamma = gamma
+        self.param_reset()
 
-        self.r = np.array([env.reward(s) for s in range(self.s_len)])
+    def param_reset(self):
+        self.r = np.array([self.env.reward(s) for s in range(self.s_len)])
         self.pi = np.zeros(self.s_len, dtype=np.int32)  # 策略（列表式地呈现） length: 101，每个状态选择哪个骰子
         self.value_pi = np.zeros(self.s_len, dtype=np.float32)  # 状态值函数 length: 101, 在某策略下每个状态的预期价值
         self.value_q = np.zeros((self.s_len, self.a_len))  # 行为值函数 101 * 2
         self.p = self.init_p()  # 存储状态转移情况 P(S`|S, A)  2 * 101 * 101  A * |St| * |St+1|
-
-        self.gamma = gamma
 
     def move(self, pos):
         pos = pos if pos <= 100 else 200 - pos

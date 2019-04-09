@@ -7,16 +7,16 @@ from contextlib2 import contextmanager
 
 
 @contextmanager
-def timer(name, verbose: int=1):
+def timer(name, verbose: bool=True):
     """
     模块执行时间计算的上下文函数
     :param name: 模块名称
     :param verbose:  是否打印结果
     """
-    start = time.perf_counter()
+    start = time.time()
     try:
         yield
     finally:
-        end = time.perf_counter()
+        end = time.time()
         if verbose:
-            print("%s COST: %.6f" % (name, end - start))
+            print("%s Time Cost: %.6f" % (name, end - start))

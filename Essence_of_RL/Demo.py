@@ -21,12 +21,17 @@ monte_carlo_samples_std_path = save_path + "monte_carlo_samples_std.txt"
 def alg_test(alg_name, alg, n_iters: int):
     print("*" * 20)
     sum_ = 0
-    with timer(alg_name, 1):
-        for _ in range(n_iters):
-            alg.iteration()
-            sum_ += eval_game(env, alg.agent)
-    print("%s policy avg. score: %.2f" % (alg_name, sum_ / n_iters))
-    print(alg.agent.pi)
+
+    if isinstance(alg.agent, TableAgent):
+        policy_iter = 0
+
+        with timer(alg_name, True):
+            for _ in range(n_iters):
+                alg.iteration()
+                policy_iter += alg.iter_counter
+                #sum_ += eval_game(env, alg.agent)
+        print("%s policy Avg score: %.2f  Avg iter: %.2f" % (alg_name, sum_ / n_iters, policy_iter / n_iters))
+        # print(alg.agent.pi)
 
 
 def monte_carlo_std(sample_path):
@@ -40,9 +45,10 @@ if __name__ == '__main__':
     random.seed(1)
     np.random.seed(1)
     env = Snakes(ladder_num=10, dices=[3, 6])
-    eval_num = 10000
     print(env.ladders)
 
+    # -------------------------------测试空白随机策略---------------------------------
+    eval_num = 10000
     policies = {
         "All_0": [0] * 100,
         "All_1": [1] * 100,
@@ -55,21 +61,34 @@ if __name__ == '__main__':
             sum_ += eval_game(env, policy)
         print("%s policy avg. score: %.2f" % (name, sum_ / eval_num))
 
-    print("*" * 20)
+    # -----------------------------------------------------------------------------
 
+    # -------------------------------测试Policy策略---------------------------------
+    n_iters = 10
     algs = {
         "PolicyIteration": PolicyIteration(TableAgent(env), max_iter=-1),
         "ValueIteration": ValueIteration(TableAgent(env), max_iter=-1),
         "GeneralizedPolicyIteration": GeneralizedPolicyIteration(TableAgent(env), max_policy_iter=1, max_value_iter=10),
-        # "MonteCarlo": MonteCarlo(env, ModelFreeAgent(env), eval_iter=100,  max_iter=10, episode_save=monte_carlo_samples_path),
+        # "MonteCarlo": MonteCarlo(env, ModelFreeAgent(env), eval_iter=100,
+        #                          max_iter=10, episode_save=monte_carlo_samples_path),
         # "SARSA": SARSA(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5),
         # "QLearning": QLearning(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5)
     }
 
     for alg_name, alg in algs.items():
-        alg_test(alg_name, alg, 100)
-
-    res = monte_carlo_std(monte_carlo_samples_path)
-    res.to_csv(monte_carlo_samples_std_path, index=False, sep="\t")
+        print("*" * 20)
+        sum_ = 0
+        policy_iter = 0
+        with timer(alg_name, True):
+            for _ in range(n_iters):
+                alg.agent.param_reset()  # 每次需将策略参数重置
+                alg.iteration()
+                if hasattr(alg, "iter_counter"):
+                    policy_iter += alg.iter_counter
+                sum_ += eval_game(env, alg.agent)
+        print("%s policy Avg score: %.2f  Avg iter: %.2f" % (alg_name, sum_ / n_iters, policy_iter / n_iters))
+    #
+    # res = monte_carlo_std(monte_carlo_samples_path)
+    # res.to_csv(monte_carlo_samples_std_path, index=False, sep="\t")
 
 
