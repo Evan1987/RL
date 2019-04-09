@@ -17,23 +17,6 @@ save_path = PATH_ROOT + "Code projects/Python/RL_Learn/Essence_of_RL/QLearning/"
 monte_carlo_samples_path = save_path + "monte_carlo_samples.txt"
 monte_carlo_samples_std_path = save_path + "monte_carlo_samples_std.txt"
 
-
-def alg_test(alg_name, alg, n_iters: int):
-    print("*" * 20)
-    sum_ = 0
-
-    if isinstance(alg.agent, TableAgent):
-        policy_iter = 0
-
-        with timer(alg_name, True):
-            for _ in range(n_iters):
-                alg.iteration()
-                policy_iter += alg.iter_counter
-                #sum_ += eval_game(env, alg.agent)
-        print("%s policy Avg score: %.2f  Avg iter: %.2f" % (alg_name, sum_ / n_iters, policy_iter / n_iters))
-        # print(alg.agent.pi)
-
-
 def monte_carlo_std(sample_path):
     df = pd.read_table(sample_path, names=["status", "act", "val"])
     res = df.groupby(["status", "act"], as_index=False).agg({"val": ["count", "std"]})
