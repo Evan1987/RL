@@ -76,7 +76,7 @@ class SARSA(Alg):
             prev_act = -1  # a
             done = False
             while not done:
-                act = self.agent.play(state)  # state: s`, act: s`
+                act = self.agent.play(state)  # state: s`, act: a`
                 next_state, reward, done, _ = self.env.step(act)  # reward: r(s`), next_state: new s`
                 if prev_act >= 0:
                     # r(s`) + gamma * q(s`,a`)
@@ -119,7 +119,7 @@ class QLearning(Alg):
             prev_act = -1  # a
             done = False
             while not done:
-                act = self.agent.play(state)  # state: s`, act: s`
+                act = self.agent.play(state)  # state: s`, act: a`
                 next_state, reward, done, _ = self.env.step(act)  # reward: r(s`), next_state: new s`
                 if prev_act >= 0:
                     # r(s`) + gamma * max(q(s`,a`))

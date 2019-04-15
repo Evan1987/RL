@@ -11,6 +11,10 @@ class Agent(metaclass=abc.ABCMeta):
     def play(self):
         pass
 
+    @abc.abstractmethod
+    def param_reset(self):
+        pass
+
 
 class TableAgent(Agent):
     def __init__(self, env, *, gamma=0.8):
@@ -59,11 +63,14 @@ class ModelFreeAgent(Agent):
         """
         self.s_len = env.observation_space.n  # 101
         self.a_len = env.action_space.n  # 2
+        self.gamma = gamma
+        self.e_greedy = e_greedy
+        self.param_reset()
+
+    def param_reset(self):
         self.pi = np.zeros(self.s_len, dtype=np.int32)  # 策略（列表式地呈现） length: 101，每个状态选择哪个骰子
         self.value_q = np.zeros((self.s_len, self.a_len))  # 行为值函数 101 * 2
         self.value_n = np.zeros((self.s_len, self.a_len))  # 行为计数（采样序列在此处发生的数量）
-        self.gamma = gamma
-        self.e_greedy = e_greedy
 
     def play(self, state):
         if np.random.uniform() > self.e_greedy:

@@ -38,7 +38,7 @@ class PolicyIteration(Alg):
         iteration = 0
         while iteration != self.max_iter:
             iteration += 1
-            new_value_pi = self.agent.value_pi.copy()
+            new_value_pi = np.zeros_like(self.agent.value_pi)
             for i in range(1, self.agent.s_len):  # 遍历全部status
                 # 当前策略（旧的，更新值函数时保持不变），由于是表格式记载了所选择的动作，所以动作的选择概率是非0即1的。
                 # 即 π(一（二）号骰子|S) = 0 或 1
