@@ -112,7 +112,7 @@ class ValueIteration(Alg):
             for act in range(self.agent.a_len):
                 transition = self.agent.p[act, i, :]
                 self.agent.value_q[i, act] = np.asscalar(np.dot(transition, self.agent.r + self.agent.gamma * self.agent.value_pi))
-            self.agent.pi = np.argmax(self.agent.value_q, axis=1)
+        self.agent.pi = np.argmax(self.agent.value_q, axis=1)
 
 
 class GeneralizedPolicyIteration(Alg):

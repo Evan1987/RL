@@ -52,10 +52,10 @@ if __name__ == '__main__':
         "PolicyIteration": PolicyIteration(TableAgent(env), max_iter=-1),
         "ValueIteration": ValueIteration(TableAgent(env), max_iter=-1),
         "GeneralizedPolicyIteration": GeneralizedPolicyIteration(TableAgent(env), max_policy_iter=1, max_value_iter=10),
-         "MonteCarlo": MonteCarlo(env, ModelFreeAgent(env), eval_iter=100,
-                                  max_iter=10, episode_save=monte_carlo_samples_path),
-         "SARSA": SARSA(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5),
-         "QLearning": QLearning(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5)
+        #  "MonteCarlo": MonteCarlo(env, ModelFreeAgent(env), eval_iter=100,
+        #                           max_iter=10, episode_save=monte_carlo_samples_path),
+        #  "SARSA": SARSA(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5),
+        #  "QLearning": QLearning(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5)
     }
 
     for alg_name, alg in algs.items():
@@ -71,7 +71,7 @@ if __name__ == '__main__':
                 sum_ += eval_game(env, alg.agent)
         print("%s policy Avg score: %.2f  Avg iter: %.2f" % (alg_name, sum_ / n_iters, policy_iter / n_iters))
 
-    res = monte_carlo_std(monte_carlo_samples_path)
-    res.to_csv(monte_carlo_samples_std_path, index=False, sep="\t")
+    # res = monte_carlo_std(monte_carlo_samples_path)
+    # res.to_csv(monte_carlo_samples_std_path, index=False, sep="\t")
 
 

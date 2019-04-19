@@ -70,8 +70,8 @@ if __name__ == "__main__":
     score = i = 0
     while True:
         env.render()
-        dice = random.choice(dices)  # 随机选择一个骰子
-        state, reward, is_done, _ = env.step(dice)
+        action = random.choice(range(len(dices)))  # 随机选择一个骰子
+        state, reward, is_done, _ = env.step(action)
         score += reward
         i += 1
         print("Step: %d  Pos: %d  Score: %d" % (i, state, score))
