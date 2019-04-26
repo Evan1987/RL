@@ -5,13 +5,24 @@ This part of code followed book "the Essence of RL"
 
 import numpy as np
 import os
+from typing import Optional
 from Policy import Alg
 from Snake import Snakes
 from Agent import ModelFreeAgent
 
 
 class MonteCarlo(Alg):
-    def __init__(self, env: Snakes, agent: ModelFreeAgent, *, epsilon=0.8, eval_iter=100, max_iter=10, episode_save=None):
+    def __init__(self, env: Snakes, agent: ModelFreeAgent, *, epsilon=0.8,
+                 eval_iter=100, max_iter=10, episode_save: Optional[str]=None):
+        """
+        使用 monte-carlo方法完成策略迭代
+        :param env: 游戏环境
+        :param agent: agent
+        :param epsilon: agent的 e-greedy参数
+        :param eval_iter: 内层策略评估的迭代次数
+        :param max_iter: 外层策略迭代次数
+        :param episode_save: 采样信息保存地址
+        """
         self.env = env
         self.agent = agent
         self.agent.e_greedy = epsilon
@@ -20,11 +31,12 @@ class MonteCarlo(Alg):
         self.episode_save = episode_save
 
     def policy_eval(self):
+        """策略评估"""
         for _ in range(self.eval_iter):
             state = self.env.reset()
             episode = []  # 记录状态行为序列，元素为三元组[si, ai, r]
             done = False
-            while not done:
+            while not done:  # monte-carlo采样，不断交互
                 act = self.agent.play(state)
                 next_state, reward, done, _ = self.env.step(act)
                 episode.append((state, act, reward))
@@ -42,6 +54,7 @@ class MonteCarlo(Alg):
                     for state, act, return_val in episode:
                         f.write("%d\t%d\t%.4f\n" % (state, act, return_val))
 
+            # 根据大数定理，利用均值（期望）给q(s,a)赋值
             for state, act, return_val in episode:
                 self.agent.value_n[state, act] += 1
                 # 均值更新
@@ -49,6 +62,7 @@ class MonteCarlo(Alg):
                     (return_val - self.agent.value_q[state, act]) / self.agent.value_n[state, act]
 
     def policy_improve(self):
+        """策略更新"""
         new_pi = np.argmax(self.agent.value_q, axis=1)
         if np.all(np.equal(new_pi, self.agent.pi)):
             return False
@@ -56,6 +70,7 @@ class MonteCarlo(Alg):
         return True
 
     def iteration(self):
+        """整体迭代"""
         for _ in range(self.max_iter):
             self.policy_eval()
             self.policy_improve()
@@ -63,6 +78,9 @@ class MonteCarlo(Alg):
 
 class SARSA(Alg):
     def __init__(self, env: Snakes, agent: ModelFreeAgent, *, epsilon=0.8, max_iter=10, eval_iter=200):
+        """
+        使用时序差分进行策略迭代，参数说明与 monte-carlo一致
+        """
         self.env = env
         self.agent = agent
         self.agent.e_greedy = epsilon
@@ -70,6 +88,7 @@ class SARSA(Alg):
         self.eval_iter = eval_iter
 
     def policy_eval(self):
+        """策略评估"""
         for _ in range(self.eval_iter):
             state = self.env.reset()
             prev_state = -1  # s
@@ -92,6 +111,7 @@ class SARSA(Alg):
                 state = next_state
 
     def policy_improve(self):
+        """策略更新"""
         new_pi = np.argmax(self.agent.value_q, axis=1)
         if np.all(np.equal(new_pi, self.agent.pi)):
             return False
@@ -99,6 +119,7 @@ class SARSA(Alg):
         return True
 
     def iteration(self):
+        """整体迭代"""
         for _ in range(self.max_iter):
             self.policy_eval()
             self.policy_improve()

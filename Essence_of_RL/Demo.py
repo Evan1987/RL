@@ -13,9 +13,10 @@ from Agent import TableAgent, eval_game, ModelFreeAgent
 from Utils import timer
 from _utils.u_constant import PATH_ROOT
 
-save_path = PATH_ROOT + "Code projects/Python/RL_Learn/Essence_of_RL/QLearning/"
+save_path = PATH_ROOT + "Code projects/Python/RL/Essence_of_RL/QLearning/"
 monte_carlo_samples_path = save_path + "monte_carlo_samples.txt"
 monte_carlo_samples_std_path = save_path + "monte_carlo_samples_std.txt"
+
 
 def monte_carlo_std(sample_path):
     df = pd.read_table(sample_path, names=["status", "act", "val"])
@@ -52,10 +53,9 @@ if __name__ == '__main__':
         "PolicyIteration": PolicyIteration(TableAgent(env), max_iter=-1),
         "ValueIteration": ValueIteration(TableAgent(env), max_iter=-1),
         "GeneralizedPolicyIteration": GeneralizedPolicyIteration(TableAgent(env), max_policy_iter=1, max_value_iter=10),
-        #  "MonteCarlo": MonteCarlo(env, ModelFreeAgent(env), eval_iter=100,
-        #                           max_iter=10, episode_save=monte_carlo_samples_path),
-        #  "SARSA": SARSA(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5),
-        #  "QLearning": QLearning(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5)
+        "MonteCarlo": MonteCarlo(env, ModelFreeAgent(env), eval_iter=100, max_iter=10, episode_save=monte_carlo_samples_path),
+        "SARSA": SARSA(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5),
+        "QLearning": QLearning(env, ModelFreeAgent(env), max_iter=10, eval_iter=100, epsilon=0.5)
     }
 
     for alg_name, alg in algs.items():
@@ -71,7 +71,7 @@ if __name__ == '__main__':
                 sum_ += eval_game(env, alg.agent)
         print("%s policy Avg score: %.2f  Avg iter: %.2f" % (alg_name, sum_ / n_iters, policy_iter / n_iters))
 
-    # res = monte_carlo_std(monte_carlo_samples_path)
-    # res.to_csv(monte_carlo_samples_std_path, index=False, sep="\t")
+    res = monte_carlo_std(monte_carlo_samples_path)
+    res.to_csv(monte_carlo_samples_std_path, index=False, sep="\t")
 
 
