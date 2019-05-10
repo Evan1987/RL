@@ -137,7 +137,7 @@ class Memory(object):
         batch_weights = np.empty(shape=(n, 1), dtype=np.float32)
 
         data_size = self.sumTree.data[0].size
-        assert data_size == 6
+        # assert data_size == 6
         batch_memory = np.empty(shape=(n, data_size))
         self.beta = min(1.0, self.beta + self.beta_increment_per_sampling)  # clip beta
 
@@ -176,6 +176,7 @@ class DeepQNetWork:
                  e_greedy_increment=None,
                  double_q=False,
                  prioritized=True,
+                 dueling=False,
                  output_graph=False):
         self.n_actions = n_actions
         self.n_features = n_features
@@ -189,7 +190,9 @@ class DeepQNetWork:
         self.epsilon = 0 if e_greedy_increment is not None else self.epsilon_max
         self.double_q = double_q  # 是否使用doubleDQN
         self.prioritized = prioritized  # 是否使用PRB
-        self.sess = self.session
+        self.dueling = dueling  # 是否使用Dueling
+        self.graph = self.build_graph()
+        self.sess = self.build_session(self.graph)
         self.sess.run(self.init)
         self.learning_step_count = 0
 
@@ -204,26 +207,45 @@ class DeepQNetWork:
         if output_graph:
             tf.summary.FileWriter("F:/board/DQN/", self.graph)
 
-    @property
-    def session(self):
+    def build_session(self, graph):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.8  # 程序最多只能占用指定gpu80%的显存
         config.gpu_options.allow_growth = True  # 程序按需申请内存
-        sess = tf.Session(graph=self.graph, config=config)
+        sess = tf.Session(graph=graph, config=config)
         return sess
 
-    @property
-    def graph(self):
+    def build_layers(self, s, w_initializer, b_initializer, hidden_units):
+        e1 = tf.layers.dense(inputs=s, units=hidden_units, activation=tf.nn.relu,
+                             kernel_initializer=w_initializer,
+                             bias_initializer=b_initializer,
+                             name="e1")
+        if self.dueling:
+            with tf.variable_scope("Value"):
+                self.V = tf.layers.dense(inputs=e1, units=1, activation=None,
+                                         kernel_initializer=w_initializer,
+                                         bias_initializer=b_initializer,
+                                         name="v")
+            with tf.variable_scope("Advantage"):
+                # [None, n_actions]
+                self.A = tf.layers.dense(inputs=e1, units=self.n_actions, activation=None,
+                                         kernel_initializer=w_initializer,
+                                         bias_initializer=b_initializer,
+                                         name="a")
+            with tf.variable_scope("Q"):
+                out = self.V + self.A - tf.reduce_mean(self.A, axis=1, keep_dims=True)
+        else:
+            with tf.variable_scope("Q"):
+                out = tf.layers.dense(inputs=e1, units=self.n_actions, activation=None,
+                                      kernel_initializer=w_initializer,
+                                      bias_initializer=b_initializer,
+                                      name="q")
+        return out
+
+    def build_graph(self):
         """构建图"""
         tf.reset_default_graph()
         graph = tf.Graph()
         with graph.as_default():
-
-            e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="eval_net")
-            t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="target_net")
-            with tf.variable_scope("hard_replacement"):
-                self.replace_target_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
-
             # ------------------ all inputs --------------------------
             self.s = tf.placeholder(dtype=tf.float32, shape=[None, self.n_features], name="s")
             self.s_ = tf.placeholder(dtype=tf.float32, shape=[None, self.n_features], name="s_")
@@ -236,24 +258,11 @@ class DeepQNetWork:
 
             # ------------------ build evaluate_net ------------------
             with tf.variable_scope("eval_net"):
-                # shape: [None, 20]  status => hidden_layer
-                e1 = tf.layers.dense(inputs=self.s, units=20, activation=tf.nn.relu,
-                                     kernel_initializer=w_initializer, bias_initializer=b_initializer, name="e1")
-
-                # shape: [None, n_actions]   hidden_layer => action
-                self.q_eval = tf.layers.dense(inputs=e1, units=self.n_actions, activation=None,
-                                              kernel_initializer=w_initializer, bias_initializer=b_initializer, name="q")
+                self.q_eval = self.build_layers(self.s, w_initializer, b_initializer, 20)
 
             # ------------------ build target_net ------------------
             with tf.variable_scope("target_net"):
-                # shape: [None, 20]
-                t1 = tf.layers.dense(inputs=self.s_, units=20, activation=tf.nn.relu,
-                                     kernel_initializer=w_initializer, bias_initializer=b_initializer, name="t1")
-
-                # shape: [None, n_actions]
-                self.q_next = tf.layers.dense(inputs=t1, units=self.n_actions, activation=None,
-                                              kernel_initializer=w_initializer, bias_initializer=b_initializer,
-                                              name="t2")
+                self.q_next = self.build_layers(self.s_, w_initializer, b_initializer, 20)
 
             with tf.variable_scope("q_eval"):  # Pred Q
                 a_indices = tf.stack([tf.range(tf.shape(self.a)[0], dtype=tf.int32), self.a], axis=1)  # [None, 2]
@@ -273,6 +282,12 @@ class DeepQNetWork:
                     # 对于一般DQN，q_target来源于target网络，因此不需要计算梯度
                     self.q_target = tf.stop_gradient(q_target)  # [None, ]
 
+            e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="eval_net")
+            t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="target_net")
+
+            with tf.variable_scope("hard_replacement"):
+                self.replace_target_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
+
             with tf.variable_scope("loss"):
                 if self.prioritized:
                     self.abs_errors = tf.abs(self.q_target - self.q_eval_a)
@@ -281,7 +296,7 @@ class DeepQNetWork:
                     self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval_a))
 
             with tf.variable_scope("train"):
-                self.train_op = tf.train.RMSPropOptimizer(self.alpha).minimize(self.loss)
+                self.train_op = tf.train.RMSPropOptimizer(self.alpha).minimize(self.loss, var_list=e_params)
 
             self.init = tf.global_variables_initializer()
 
@@ -352,14 +367,13 @@ class DeepQNetWork:
         self.epsilon = self.epsilon + self.epsilon_increment if self.epsilon < self.epsilon_max else self.epsilon_max
         self.learning_step_count += 1
 
-        if self.learning_step_count > 0 and self.learning_step_count % 50 == 0:
-            print("Iterations: %d  cost: %.4f" % (self.learning_step_count, cost))
-            if not self.prioritized:
-                print(self.memory)
+        # if self.learning_step_count > 0 and self.learning_step_count % 50 == 0:
+        #     print("Iterations: %d  cost: %.4f" % (self.learning_step_count, cost))
+        #     if not self.prioritized:
+        #         print(self.memory)
 
     def plot_cost(self):
         plt.plot(np.arange(len(self.cost_list)), self.cost_list)
         plt.ylabel("Cost")
         plt.xlabel("training_steps")
         plt.show()
-

@@ -142,7 +142,7 @@ class Memory(object):
         batch_weights = np.empty(shape=(n, 1), dtype=np.float32)
 
         data_size = self.sumTree.data[0].size
-        assert data_size == 6
+        # assert data_size == 6
         batch_memory = np.empty(shape=(n, data_size))
         self.beta = min(1.0, self.beta + self.beta_increment_per_sampling)  # clip beta
 
@@ -251,11 +251,6 @@ class DeepQNetWork:
         tf.reset_default_graph()
         graph = tf.Graph()
         with graph.as_default():
-            e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="eval_net")
-            t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="target_net")
-            with tf.variable_scope("hard_replacement"):
-                self.replace_target_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
-
             # ------------------ all inputs --------------------------
             self.s = tf.placeholder(dtype=tf.float32, shape=[None, self.n_features], name="s")
             self.s_ = tf.placeholder(dtype=tf.float32, shape=[None, self.n_features], name="s_")
@@ -292,6 +287,12 @@ class DeepQNetWork:
                     # 对于一般DQN，q_target来源于target网络，因此不需要计算梯度
                     self.q_target = tf.stop_gradient(q_target)  # [None, ]
 
+            e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="eval_net")
+            t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="target_net")
+
+            with tf.variable_scope("hard_replacement"):
+                self.replace_target_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
+
             with tf.variable_scope("loss"):
                 if self.prioritized:
                     self.abs_errors = tf.abs(self.q_target - self.q_eval_a)
@@ -300,7 +301,7 @@ class DeepQNetWork:
                     self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval_a))
 
             with tf.variable_scope("train"):
-                self.train_op = tf.train.RMSPropOptimizer(self.alpha).minimize(self.loss)
+                self.train_op = tf.train.RMSPropOptimizer(self.alpha).minimize(self.loss, var_list=e_params)
 
             self.init = tf.global_variables_initializer()
 
@@ -371,10 +372,10 @@ class DeepQNetWork:
         self.epsilon = self.epsilon + self.epsilon_increment if self.epsilon < self.epsilon_max else self.epsilon_max
         self.learning_step_count += 1
 
-        if self.learning_step_count > 0 and self.learning_step_count % 50 == 0:
-            print("Iterations: %d  cost: %.4f" % (self.learning_step_count, cost))
-            if not self.prioritized:
-                print(self.memory)
+        # if self.learning_step_count > 0 and self.learning_step_count % 50 == 0:
+        #     print("Iterations: %d  cost: %.4f" % (self.learning_step_count, cost))
+        #     if not self.prioritized:
+        #         print(self.memory)
 
     def plot_cost(self):
         plt.plot(np.arange(len(self.cost_list)), self.cost_list)
