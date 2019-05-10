@@ -1,3 +1,7 @@
+'''
+DQN test with gym-cartpole. The CartPole env description:
+https://github.com/openai/gym/wiki/CartPole-v0
+'''
 
 import sys
 import os
