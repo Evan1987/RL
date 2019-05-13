@@ -12,10 +12,11 @@ from Essence_of_RL.QLearning.DQN import DeepQNetWork
 
 RENDER = False
 MAX_EP_STEPS = 1000
-DISPLAY_REWARD_THRESHOLD = 200
+DISPLAY_REWARD_THRESHOLD = 150
 
 if __name__ == '__main__':
     env = gym.make("CartPole-v0").unwrapped
+    env.seed(100)
     RL = DeepQNetWork(env.action_space.n,
                       env.observation_space.shape[0],
                       learning_rate=0.01,
@@ -24,7 +25,7 @@ if __name__ == '__main__':
                       replace_target_iter=200,
                       double_q=True,  # Double DQN
                       prioritized=False,  # use PRB
-                      dueling=True,  # use Dueling DQN
+                      dueling=False,  # use Dueling DQN
                       memory_size=200,
                       output_graph=True)
 
