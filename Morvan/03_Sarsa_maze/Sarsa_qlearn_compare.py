@@ -7,7 +7,7 @@ Created on Wed Jan  9 11:09:37 2019
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from _utils import u_constant
+from evan_utils import u_constant
 path = u_constant.PATH_ROOT + "Code projects/Python/RL_Learn/Morvan/"
 
 sarsa = pd.read_excel(path + "03_Sarsa_maze/sarsa_log.xlsx")

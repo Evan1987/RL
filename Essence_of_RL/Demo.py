@@ -11,7 +11,7 @@ from Policy import PolicyIteration, ValueIteration, GeneralizedPolicyIteration
 from QLearning.Strategy import MonteCarlo, SARSA, QLearning
 from Agent import TableAgent, eval_game, ModelFreeAgent
 from Utils import timer
-from _utils.u_constant import PATH_ROOT
+from evan_utils.constant import PATH_ROOT
 
 save_path = PATH_ROOT + "Code projects/Python/RL/Essence_of_RL/QLearning/"
 monte_carlo_samples_path = save_path + "monte_carlo_samples.txt"
